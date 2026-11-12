@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Calm the Baby</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;900&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#fdf0e3;--card:#fff;--ink:#3b2f2a;--dim:#8a7a70;--coral:#ff6f59;--mint:#43b894;--line:#f0dccb;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1d1714;--card:#2a211d;--ink:#f6e9de;--dim:#b3a094;--line:#3d302a}}
+:root[data-theme="dark"]{--bg:#1d1714;--card:#2a211d;--ink:#f6e9de;--dim:#b3a094;--line:#3d302a}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{background:var(--bg);color:var(--ink);font-family:Nunito,system-ui,sans-serif;display:flex;justify-content:center;user-select:none;-webkit-user-select:none;touch-action:manipulation}
+main{width:100%;max-width:420px;padding:14px;position:relative}
+.hud{display:flex;justify-content:space-between;font-weight:900;font-size:.9rem;margin-bottom:6px}
+.meter{height:16px;background:var(--line);border-radius:10px;overflow:hidden}
+#fill{height:100%;width:30%;background:var(--coral)}
+.lbl{display:flex;justify-content:space-between;font-size:.75rem;color:var(--dim);margin:3px 0 8px}
+.stage{background:var(--card);border-radius:22px;padding:14px;text-align:center;border:2px solid var(--line)}
+#baby{font-size:6.5rem;line-height:1.1}
+#baby.cry{animation:w .35s infinite alternate}
+#baby.shake{animation:s .3s}
+@keyframes w{from{transform:rotate(-4deg)}to{transform:rotate(4deg)}}
+@keyframes s{0%,100%{transform:translateX(0)}25%{transform:translateX(-10px)}75%{transform:translateX(10px)}}
+#say{font-weight:900;color:var(--coral);height:1.6em}
+#need{display:flex;gap:8px;justify-content:center;min-height:50px;margin-top:6px}
+.n{background:var(--bg);border:2px dashed var(--coral);border-radius:14px;padding:6px 12px;font-weight:900;font-size:.95rem}
+.acts{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin-top:12px}
+.acts button{background:var(--card);border:2px solid var(--line);border-radius:14px;padding:10px 0;font:inherit;font-weight:900;font-size:.72rem;color:var(--ink);cursor:pointer}
+.acts button span{display:block;font-size:1.6rem}
+.acts button:active{transform:scale(.95)}
+#task{margin-top:12px;background:var(--card);border:2px solid var(--coral);border-radius:16px;padding:14px;text-align:center}
+#task h3{margin:0 0 8px}
+.pb{height:14px;background:var(--line);border-radius:8px;overflow:hidden;margin-bottom:10px}
+#pf{height:100%;width:0;background:var(--mint)}
+.big{width:100%;padding:18px;border:0;border-radius:14px;background:var(--mint);color:#fff;font:inherit;font-weight:900;font-size:1.3rem;cursor:pointer}
+.two{display:flex;gap:8px}
+.cx{background:none;border:0;color:var(--dim);font:inherit;margin-top:8px;cursor:pointer;text-decoration:underline}
+#ov{position:absolute;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:26px;gap:8px;z-index:5}
+#ov h1{margin:0;font-size:2rem}
+#ov p{margin:0;color:var(--dim);line-height:1.5}
+#ov .em{font-size:5rem}
+#ov button{margin-top:10px;padding:14px 34px;border:0;border-radius:30px;background:var(--coral);color:#fff;font:inherit;font-weight:900;font-size:1.1rem;cursor:pointer}
+[hidden]{display:none!important}
+button:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+</style>
+</head>
+<body>
+<main>
+<div class="hud"><span>Needs met <span id="dn">0</span>/15</span><span>Best <span id="bs">0</span></span></div>
+<div class="meter"><div id="fill"></div></div>
+<div class="lbl"><span>Calm</span><span>Meltdown</span></div>
+<div class="stage"><div id="baby">😭</div><div id="say"></div><div id="need"></div></div>
+<div class="acts" id="acts"></div>
+<div id="task" hidden></div>
+<div id="ov"></div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const T={feed:{i:"🍼",n:"Feed",w:"Hungry",k:"hold"},diaper:{i:"🧷",n:"Change",w:"Messy",k:"tap",c:8},rock:{i:"🛏️",n:"Rock",w:"Sleepy",k:"alt",c:8},play:{i:"🧸",n:"Play",w:"Bored",k:"tap",c:12},burp:{i:"🫧",n:"Burp",w:"Gassy",k:"tap",c:6}};
+const KEYS=Object.keys(T),GOAL=15;
+let m,needs,done,state="ready",task,holding,last,next,best=0,side;
+try{best=+localStorage.getItem("baby-best")||0}catch(e){}
+$("bs").textContent=best;
+$("acts").innerHTML=KEYS.map(k=>`<button data-k="${k}"><span>${T[k].i}</span>${T[k].n}</button>`).join("");
+function ov(h){$("ov").innerHTML=h;$("ov").hidden=false}
+function intro(){ov("<div class='em'>😭</div><h1>Calm the Baby</h1><p>The baby is crying, and the only way to stop it is to find out what it needs.</p><p>Read the bubble, pick the right task, and finish it before the meltdown bar fills. Meet 15 needs to get the baby to sleep.</p><button id='st'>Start</button>");$("st").onclick=begin}
+function pickNeeds(){const n=done>=5&&Math.random()<.4?2:1;const pool=KEYS.slice().sort(()=>Math.random()-.5);needs=pool.slice(0,n);drawNeeds()}
+function drawNeeds(){$("need").innerHTML=needs.map(k=>`<div class="n">${T[k].i} ${T[k].w}</div>`).join("")}
+function begin(){m=30;done=0;task=null;next=0;$("ov").hidden=true;$("task").hidden=true;$("acts").hidden=false;$("dn").textContent=0;pickNeeds();state="play";last=performance.now();requestAnimationFrame(loop)}
+function face(){return m<15?"😴":m<35?"🙂":m<55?"😟":m<78?"😢":"😭"}
+function wrong(){m=Math.min(100,m+8);$("baby").classList.remove("shake");void $("baby").offsetWidth;$("baby").classList.add("shake")}
+$("acts").onclick=e=>{const b=e.target.closest("button");if(!b||state!=="play"||!needs.length)return;
+ const k=b.dataset.k;if(!needs.includes(k)){wrong();return}startTask(k)};
+function startTask(k){task={k,p:0};side=null;holding=false;$("acts").hidden=true;$("task").hidden=false;const t=T[k];
+ let ctl=t.k==="hold"?"<button class='big' id='hb'>HOLD</button>":t.k==="alt"?"<div class='two'><button class='big' data-s='L'>◀</button><button class='big' data-s='R'>▶</button></div>":"<button class='big' id='tb'>TAP!</button>";
+ const tip=t.k==="hold"?"Keep holding the bottle":t.k==="alt"?"Rock left, right, left, right":"Tap quickly. Progress fades if you slow down";
+ $("task").innerHTML=`<h3>${t.i} ${t.n}</h3><div class="pb"><div id="pf"></div></div>${ctl}<p style="margin:8px 0 0;font-size:.8rem;color:var(--dim)">${tip}</p><button class="cx" id="cx">Cancel</button>`;
+ $("cx").onclick=endTask;
+ if(t.k==="hold"){const h=$("hb");h.onpointerdown=()=>holding=true;h.onpointerup=h.onpointerleave=h.onpointercancel=()=>holding=false}
+ else if(t.k==="tap")$("tb").onpointerdown=()=>{task.p+=100/t.c};
+ else $("task").querySelectorAll("[data-s]").forEach(b=>b.onpointerdown=()=>{const s=b.dataset.s;if(s===side){task.p=Math.max(0,task.p-8)}else{task.p+=100/t.c;side=s}})}
+function endTask(){task=null;holding=false;$("task").hidden=true;$("acts").hidden=false}
+function finish(){const k=task.k;needs=needs.filter(x=>x!==k);done++;$("dn").textContent=done;m=Math.max(0,m-30);endTask();
+ if(done>=GOAL)return win();if(needs.length)drawNeeds();else{$("need").innerHTML="";next=performance.now()+900}}
+function over(){state="over";endTask();ov("<div class='em'>🚪😡</div><h1>The neighbours knocked</h1><p>The baby cried too long. You met "+done+" needs.</p><button id='ag'>Try again</button>");$("ag").onclick=begin}
+function win(){state="win";endTask();if(done>best){best=done;try{localStorage.setItem("baby-best",best)}catch(e){}}$("bs").textContent=best;
+ ov("<div class='em'>😴</div><h1>Shh… asleep</h1><p>You met all 15 needs and the house is quiet at last. 🌙</p><button id='ag'>Play again</button>");$("ag").onclick=begin}
+function loop(t){if(state!=="play")return;const dt=Math.min(.05,(t-last)/1000);last=t;
+ m+=dt*(3+done*.22);
+ if(task){const d=T[task.k];if(d.k==="hold")task.p+=holding?dt*50:-dt*20;else task.p-=dt*(d.k==="tap"?9:6);task.p=Math.max(0,task.p);$("pf").style.width=Math.min(100,task.p)+"%";if(task.p>=100)finish()}
+ if(!needs.length&&state==="play"&&t>next)pickNeeds();
+ if(m>=100){m=100;over()}
+ $("fill").style.width=m+"%";$("baby").textContent=face();
+ $("baby").classList.toggle("cry",m>55);
+ $("say").textContent=m>78?"WAAAAAH!!":m>55?"Waaah…":m>30?"hic… hic…":m>12?"hmm…":"zzz";
+ requestAnimationFrame(loop)}
+intro();
+</script>
+</body>
+</html>
